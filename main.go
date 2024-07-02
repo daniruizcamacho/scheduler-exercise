@@ -90,8 +90,6 @@ func tasks() []int {
 		return []int{}
 	}
 
-	fmt.Println(numberOfTasks)
-
 	tasks := make([]int, 0, numberOfTasks)
 	for i := 0; i < numberOfTasks; i++ {
 		tasks = append(tasks, i)

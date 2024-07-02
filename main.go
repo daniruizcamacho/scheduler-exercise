@@ -28,6 +28,8 @@ type Scheduler struct {
 	concurrency     int
 	refreshFn       func() []int
 	refreshDuration time.Duration
+	removeProcessed chan int
+	processedTasks  map[int]bool
 }
 
 func NewScheduler(concurrency int, refreshFn func() []int, refreshDuration time.Duration) *Scheduler {
@@ -36,6 +38,8 @@ func NewScheduler(concurrency int, refreshFn func() []int, refreshDuration time.
 		refreshFn:       refreshFn,
 		refreshDuration: refreshDuration,
 		tasks:           []int{},
+		removeProcessed: make(chan int),
+		processedTasks:  make(map[int]bool),
 	}
 }
 
@@ -48,6 +52,10 @@ func (s *Scheduler) Loop(ctx context.Context) {
 			s.tasks = append(s.tasks, s.refreshFn()...)
 		case <-ctx.Done():
 			return
+		case task := <-s.removeProcessed:
+			fmt.Println("removed", task)
+			fmt.Println(s.processedTasks)
+			s.processedTasks[task] = false
 		default:
 			fmt.Println(s.tasks)
 			time.Sleep(1 * time.Second)
@@ -63,7 +71,14 @@ func (s *Scheduler) Loop(ctx context.Context) {
 			tasksToExecute := s.tasks[:numberOfTasksToExecute]
 			s.tasks = s.tasks[numberOfTasksToExecute:]
 			for _, task := range tasksToExecute {
+				fmt.Println("processed", task)
+				fmt.Println(s.processedTasks)
+				if s.processedTasks[task] {
+					continue
+				}
+				s.processedTasks[task] = true
 				go execute(task)
+				go s.remove(task)
 			}
 		}
 	}
@@ -87,4 +102,9 @@ func tasks() []int {
 
 func execute(task int) {
 	fmt.Println("executed", task)
+}
+
+func (s *Scheduler) remove(task int) {
+	time.Sleep(500 * time.Millisecond)
+	s.removeProcessed <- task
 }
